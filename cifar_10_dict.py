@@ -3,19 +3,6 @@ from matplotlib import pyplot as plt
 import pickle
 from random import randint
 
-#raw images = [1/5:10000:3072,]
-#raw_train_img = []
-#raw_test_img = []
-
-#train_label = []
-#test_labels = []
-
-#converts = [1/5:10000:32:32:3]
-#tr_convert = []
-#test_convert = []
-
-#10 label in string format
-#labels = []
 
 def unpickle(file):
 
@@ -128,10 +115,10 @@ def cifar_10_rand(data):
 
     random_list = []
 
-    if len(data) <= 2:
-        for i in range(len(data[0])):
-            random_label = randint(0,9)
-            random_list.append(random_label)
+
+    for i in range(len(data)):
+        random_label = randint(0,9)
+        random_list.append(random_label)
 
     return random_list
 
@@ -175,14 +162,17 @@ def main():
 
     raw_train_img, train_labels = get_train_data()
     raw_test_data = get_test_data()
-    labels = get_labels()
-    #gt = raw_test_data[1]
-    #randoms = cifar_10_rand(raw_test_data)
-    #cifar_10_eval(randoms,gt)
 
     tr_img_arr, tr_label_arr, test_img_arr, test_label_arr = list2array(raw_train_img,
                                                             train_labels, raw_test_data[0],
                                                                         raw_test_data[1])
+
+    #labels = get_labels()
+
+
+    #randoms = cifar_10_rand(test_img_arr)
+    #cifar_10_eval(randoms,test_label_arr)
+
 
     #plot_image(tr_img_array[950])
 
@@ -192,9 +182,9 @@ def main():
     #print(np.sum(np.subtract(predict_train,tr_label_arr[0:1000])))
     #cifar_10_eval(predict_train,tr_label_arr[42000:43000])
 
-    print("test: ")
-    predict = cifar_10_1NN_for(test_img_arr[200:300],tr_img_arr[3000:10000],tr_label_arr[3000:10000])
+    #print("test: ")
+    #predict = cifar_10_1NN_for(test_img_arr[200:300],tr_img_arr[3000:10000],tr_label_arr[3000:10000])
 
-    cifar_10_eval(predict,test_label_arr[200:300])
+    #cifar_10_eval(predict,test_label_arr[200:300])
 
 main()
