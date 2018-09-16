@@ -1,0 +1,9 @@
+*.pdf
+*/*.pdf
+*.png
+*/*.png
+*.html
+*/*.html
+*.meta
+*/*.meta
+data_batch_*
