@@ -1,6 +1,6 @@
 import numpy as np
 import pickle
-
+from scipy.stats import norm, multivariate_normal
 
 def unpickle(file):
 
@@ -57,6 +57,29 @@ def list2array(train_imgs,train_labels,test_imgs,test_labels):
 
     return tr_arr_imgs, tr_arr_labels, test_array_i, test_array_l
 
+#returns all the mean values of given images 10*3*5000
+def all_means(img_array,label_array):
+
+    #This is stupid?
+    mean_list = []
+    for i in range(0,10):
+        mean_list.append([])
+        for j in range(0,3):
+            mean_list[i].append([])
+
+
+    for i in range(0,len(img_array)):
+
+        img_class = label_array[i]
+
+        mean_list[img_class][0].append(img_array[i][0])
+        mean_list[img_class][1].append(img_array[i][1])
+        mean_list[img_class][2].append(img_array[i][2])
+
+
+    mean_arr = np.asarray(mean_list)
+
+    return mean_arr
 
 #returns an array for mean color values for every image
 def cifar_10_features(img_array):
@@ -64,69 +87,140 @@ def cifar_10_features(img_array):
     mean_values = np.ones([len(img_array),3],dtype=float)
 
     for i in range(0,len(img_array)):
+
         mean_values[i] = np.mean(img_array[i], axis=1)
 
     return mean_values
 
 
+def feature_means(class_means,counts):
 
-#forms vector for mean colors for every feature
-def cifar_10_feature_means(img_array,label_array):
+    feature_means_ = np.zeros([10,3],dtype=float)
 
-    feature_means = np.ones([10,4], dtype=float)
+    #add all image feature means
+    for i in range(0,len(class_means)):
 
-    for i in range(0,len(img_array)):
+        occurance = counts[i]
+        feature_means_[i][0] = np.divide(np.sum(class_means[i][0]),occurance)
+        feature_means_[i][1] = np.divide(np.sum(class_means[i][1]),occurance)
+        feature_means_[i][2] = np.divide(np.sum(class_means[i][2]),occurance)
 
-        img_class = int(label_array[i])
-        img_r_mean = np.mean(img_array[i][0])
-        img_g_mean = np.mean(img_array[i][1])
-        img_b_mean = np.mean(img_array[i][2])
-
-        feature_means[img_class][0] = feature_means[img_class][0] + img_r_mean
-        feature_means[img_class][1] = feature_means[img_class][1] + img_g_mean
-        feature_means[img_class][2] = feature_means[img_class][2] + img_b_mean
-        feature_means[img_class][3] = feature_means[img_class][3] + 1
+    return feature_means_
 
 
-
-    for row in range(0,len(feature_means)):
-        for element in range(0,3):
-
-            feature_means[row][element] = feature_means[row][element] / (feature_means[row][3]-1)
+def cifar_bayes_learn(img_arr,labels):
 
 
-    feature_means = np.delete(feature_means,3,1)
+    img_means = cifar_10_features(img_arr)
+    class_means = all_means(img_means, labels)
 
-    return feature_means
-
-
-def cifar_bayes_learn(img_means,labels):
-
-
-    feature_means = np.ones([10,3],dtype=float)
-    p = np.ones([10,1],dtype=float)
+    #count how many times different classes occur in labels
     _, counts = np.unique(labels, return_counts=True)
 
-
-    for i in range(0,len(img_means)):
-
-       img_class = labels[i]
-       feature_means[img_class][0] = feature_means[img_class][0] + img_means[i][0]
-       feature_means[img_class][1] = feature_means[img_class][1] + img_means[i][1]
-       feature_means[img_class][2] = feature_means[img_class][2] + img_means[i][2]
+    class_color_means = feature_means(class_means,counts)
 
 
-    for i in range(0,len(feature_means)):
-        feature_means[i] = np.divide(feature_means[i],counts[i])
+    #variance = np.zeros([10,3],dtype=float)
+    sigma = np.ones([10, 3], dtype=float)
+    p = np.ones([10,1],dtype=float)
 
-    print(feature_means)
-    input("sad")
+    #calculate the standard deviaton of each color in every class
+    for row in range(0,10):
+        for column in range(0,3):
+            sigma[row][column] = np.std(class_means[row][column])
+            #variance[row][column] = np.var(class_means[row][column])
 
+
+    #count the probability for every class
     for i in range(0,len(counts)):
         p[i] = counts[i]/len(img_means)
 
+    return class_color_means, sigma, p
 
-    return mu, sigma, p
+
+def cifar_classify(img_means,mu,sigma,p):
+
+    prob_total = 1.0
+    c = []
+    class_ = 0
+
+    for i in range(0,len(img_means)):
+
+        print("pic",i)
+        img = img_means[i]
+        last_prob = 0.0
+
+        for cl in range(0,10):
+
+            for color in range(0,3):
+                probability = norm.pdf(img[color],mu[cl][color],sigma[cl][color])
+                prob_total = prob_total*probability
+
+            prob_total = prob_total*p[cl]
+
+            if prob_total > last_prob:
+                last_prob = prob_total
+                class_ = cl
+
+            prob_total = 1.0
+
+
+        c.append(class_)
+
+    c = np.asarray(c)
+
+    return c
+
+def classify_multi(img_means,mu,SIG,p):
+
+    prob_total = 1.0
+    c = []
+    class_ = 0
+
+
+    for i in range(0,len(img_means)):
+        print("picture: ",i)
+        img = img_means[i]
+        last_prob = 0.0
+
+
+        for cl in range(0,10):
+
+            probability = multivariate_normal.pdf(img,mu[cl],SIG[cl])
+
+            if probability > last_prob:
+                last_prob = probability
+                class_ = cl
+
+        c.append(class_)
+
+    c = np.asarray(c)
+
+    return c
+
+def calc_cov(img_arr,labels):
+
+    img_means_arr = cifar_10_features(img_arr)
+    class_means = all_means(img_means_arr,labels)
+
+    SIG = []
+
+    for i in range(0,len(class_means)):
+        SIG.append(np.cov(class_means[i]))
+
+    SIG = np.asarray(SIG)
+
+    return SIG
+
+
+def cifar_10_eval(pred,gt):
+
+    difference = np.subtract(pred,gt)
+
+    percent = ((len(pred)-np.count_nonzero(difference))/len(pred))*100
+    format(percent, ".2f")
+
+    print("Correct classifications: " ,percent,"%")
 
 
 def main():
@@ -140,11 +234,20 @@ def main():
                                                             train_labels, raw_test_data[0],
                                                                         raw_test_data[1])
 
-    #feature_means = cifar_10_feature_means(tr_img_arr,tr_label_arr)
-    #print(feature_means)
 
-    tr_img_means = cifar_10_features(tr_img_arr)
-    cifar_bayes_learn(tr_img_means,tr_label_arr)
+    test_img_means = cifar_10_features(test_img_arr)
+
+
+
+    mu,sigma,p = cifar_bayes_learn(tr_img_arr,tr_label_arr)
+
+    SIG = calc_cov(tr_img_arr,tr_label_arr)
+
+    c = classify_multi(test_img_means,mu,SIG,p)
+    c2 = cifar_classify(test_img_means,mu,sigma,p)
+
+    cifar_10_eval(c,test_label_arr)
+    cifar_10_eval(c2, test_label_arr)
 
 
 main()
